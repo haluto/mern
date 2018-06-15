@@ -248,3 +248,150 @@ $ npm install --save-dev babel-preset-es2015
 
 
 
+# React组件
+
+## React组件组装
+
+* 拷贝上述demo示例工程为一个新项目IssueTracker。
+* 编辑App.jsx代码：
+
+```jsx
+const contentNode = document.getElementById('contents');
+
+class IssueFilter extends React.Component {
+  render() {
+    return (
+      <div>a placeholder for the issue filter</div>
+    );
+  }
+}
+
+class IssueTable extends React.Component {
+  render() {
+    return (
+      <div>a placeholder for the issue table</div>
+    );
+  }
+}
+
+class IssueAdd extends React.Component {
+  render() {
+    return (
+      <div>a placeholder for an Issue Add entry form</div>
+    );
+  }
+}
+
+
+class IssueList extends React.Component {
+  render() {
+    return (
+      <div>
+        <h1>Issue Tracker</h1>
+        <IssueFilter />
+        <hr />
+        <IssueTable />
+        <hr />
+        <IssueAdd />
+      </div>
+    );
+  }
+}
+
+ReactDOM.render(<IssueList />, contentNode);
+```
+
+## 传递数据
+
+### 使用属性
+
+* 在子组件中，可以通过一个特殊的变量this.props来访问来自父组件的所有属性。
+* 新增IssueRow组件并修改IssueTable组件：
+
+```jsx
+class IssueRow extends React.Component {
+  render() {
+    const borderedStyle = {border:"1px solid silver", padding:4};
+    return (
+      <tr>
+        <td style={borderedStyle}>{this.props.issue_id}</td>
+        <td style={borderedStyle}>{this.props.issue_title}</td>
+      </tr>
+    );
+  }
+}
+
+class IssueTable extends React.Component {
+  render() {
+    const borderedStyle = {border:"1px solid silver", padding:6};
+    return (
+      <table style={{borderCollapse:"collapse"}}>
+        <thead>
+          <tr>
+            <th style={borderedStyle}>Id</th>
+            <th style={borderedStyle}>Title</th>
+          </tr>
+        </thead>
+        <tbody>
+          <IssueRow issue_id={1}
+            issue_title="Error in console when clicking Add" />
+          <IssueRow issue_id={2}
+            issue_title="Missing bottom border on panel" />
+        </tbody>
+      </table>
+    );
+  }
+}
+```
+
+### 属性校验
+
+* 可以通过React.PropTypes对组件间传递的属性进行类型校验。
+
+```jsx
+//在IssueRow类中添加：
+...
+static get propTypes() {
+    return {
+        issue_id: React.PropTypes.number.isRequired,
+        issue_title: React.PropTypes.string
+    };
+}
+...
+
+//或者可以在IssueRow类声明之外添加：
+IssueRow.propTypes = {
+    issue_id: React.PropTypes.number.isRequired,
+    issue_title: React.PropTypes.string
+};
+
+//可以通过defalutProps设置默认值：
+IssueRow.defaultProps = {
+    issue_title: '-- no title --'
+};
+```
+
+### 使用Children
+
+* 另一种向其他组件中传递数据的方式，在子组件中使用this.props的一个特殊属性：this.props.children。
+
+```jsx
+// 在IssueRow中的修改： 
+  {/*
+   <td style={borderedStyle}>{this.props.issue_title}</td>
+  */}
+   <td style={borderedStyle}>{this.props.children}</td>
+
+// 在IssueTable中的修改：
+  {/*
+  <IssueRow issue_id={1}
+    issue_title="Error in console when clicking Add" />
+  <IssueRow issue_id={2}
+    issue_title="Missing bottom border on panel" />
+  */}
+  <IssueRow issue_id={1}>Error in console when clicking Add</IssueRow>
+<IssueRow issue_id={2}>Missing bottom <b>border</b> on panel</IssueRow>
+
+//这样就可以把一段带格式的HTML（而不仅是纯文本）直接作为标题内容传递给IssueRow。
+```
+
