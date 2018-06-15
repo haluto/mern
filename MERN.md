@@ -72,12 +72,12 @@ $ nvm alias default 4.5
 ```
 
 ### 项目
-新建项目目录，在该目录下执行：
+新建项目目录，这里建立demo文件夹，在该目录下执行：
 ```shell
 $ npm init
 ```
 * 所有选项先用默认值，执行完会得到package.json:
-```
+```json
 {
   "name": "demo",
   "version": "1.0.0",
@@ -97,7 +97,7 @@ $ npm init
 $ npm install express[@<version>] [-save]
 ```
 * 用`--save`执行安装后，package.json中会多出：
-```
+```json
 "dependencies": {
     "express": "^4.16.3"
 }
@@ -105,7 +105,7 @@ $ npm install express[@<version>] [-save]
 * 若运行`npm install`时不指定任何选项和参数，就会安装package.json中找到的全部依赖项。
 * 选项`--save-dev`会将包添加到devDependencies中（而非dependencies中）。开发依赖项并不会被安装到生产环境中，当环境变量`NODE_ENV`被设置为字符串production时，就表示当前处于生产环境。
 * 查看已安装的包：
-```
+```shell
 $ npm ls [--depth=0]
 ```
 ### Express
@@ -193,7 +193,7 @@ ReactDOM.render(component, contentNode);
 
 * 在package.json的scripts节中增加命令：
 
-```
+```json
 "scripts": {
     "compile": "babel src --presets react --out-dir static",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -210,7 +210,7 @@ $ npm run compile
 
 在编写客户端代码时会频繁改源文件，每次编译很麻烦，可以通过babel支持的--watch选项来实现，在package.json的scripts节中增加watch命令：
 
-```
+```json
 "scripts": {
     "compile": "babel src --presets react --out-dir static",
     "watch": "babel src --presets react --out-dir static --watch",
@@ -238,11 +238,13 @@ $ npm install --save-dev babel-preset-es2015
 
 * 修改package.json中的npm编译脚本，为其在React转换之外再增加对ES2015的编译。
 
-```
+```json
 "scripts": {
     "compile": "babel src --presets react,es2015 --out-dir static",
     "watch": "babel src --presets react,es2015 --out-dir static --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
 }
 ```
+
+
 
