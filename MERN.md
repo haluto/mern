@@ -390,8 +390,287 @@ IssueRow.defaultProps = {
     issue_title="Missing bottom border on panel" />
   */}
   <IssueRow issue_id={1}>Error in console when clicking Add</IssueRow>
-<IssueRow issue_id={2}>Missing bottom <b>border</b> on panel</IssueRow>
+  <IssueRow issue_id={2}>Missing bottom <b>border</b> on panel</IssueRow>
 
 //这样就可以把一段带格式的HTML（而不仅是纯文本）直接作为标题内容传递给IssueRow。
+```
+
+### 动态组装
+
+* 用数组来传递issue的数据，而不再使用hardcode的内容。后续再替换成从服务器、数据库读取数据。
+
+```jsx
+const issues = [
+    {
+        id: 1, status: 'Open', owner: 'Ravan',
+        created: new Date('2016-08-15'), effort: 5, completionDate: undefined,
+        title: 'Error in console when clicking Add',
+    },
+    {
+        id: 2, status: 'Assigned', owner: 'Eddie',
+        created: new Date('2016-08-16'), effort: 14, 
+        completionDate: new Date('2016-08-30'),
+        title: 'Missing bottom border on panel',
+    },
+];
+```
+
+* 把问题列表issues数组从IssueList传递到IssueTable：
+
+```jsx
+...
+    <hr />
+    <IssueTable issues={issues} />
+    <hr />
+...
+```
+
+* IssueTable的render()方法中，遍历数组然后依次生成IssueRow数组：
+
+```jsx
+...
+    issues.map(issue => <IssueRow key={issue.id} issue={issue} />);
+...
+```
+
+**注意：**
+
+**在JSX中不支持使用for循环来代替这个过程，因为JSX并不是一个真正的模板语言。我们必须在render()方法中创建一个变量，然后在JSX中使用它。把两段硬编码的问题组件替换成这个变量，可以让代码具有更好的可读性。**
+
+* 在IssueTable类中，扩展表头来包含所有的字段，并将内嵌的样式换成一个CSS类：
+
+```jsx
+class IssueTable extends React.Component {
+    render() {
+        const issueRows = this.props.issues.map(
+            issue => <IssueRow key={issue.id} issue={issue} />);
+        return (
+            <table className="bordered-table">
+                <thead>
+                    <tr>
+                        <th>Id</th>
+                        <th>Status</th>
+                        <th>Owner</th>
+                        <th>Created</th>
+                        <th>Effort</th>
+                        <th>Completion Date</th>
+                        <th>Title</th>
+                    </tr>
+                </thead>
+                
+                <tbody>{issueRows}</tbody>
+            </table>
+        );
+    }
+}
+```
+
+* 新的IssueRow类：
+
+```jsx
+class IssueRow extends React.Component {
+    render() {
+        const issue = this.props.issue;
+        return (
+            <tr>
+                <td>{issue.id}</td>
+                <td>{issue.status}</td>
+                <td>{issue.owner}</td>
+                <td>{issue.created.toDateString()}</td>
+                <td>{issue.effort}</td>
+                <td>{issue.completionDate ? 
+                        issue.completionDate.toDateString() : '' }</td>
+                <td>{issue.title}</td>
+            </tr>
+        );
+    }
+}
+```
+
+* 在index.html中增加一个样式段落：
+
+```html
+...
+<style>
+    table.bordered-table th, td {border: 1px solid silver; padding: 4px;}
+    table.bordered-table {border-collapse: collapse};
+</style>
+...
+```
+
+为验证代码方便，分别列一下修改前、修改后的完整App.jsx代码：
+
+```jsx
+const contentNode = document.getElementById('contents');
+
+class IssueFilter extends React.Component {
+  render() {
+    return (
+      <div>a placeholder for the issue filter</div>
+    );
+  }
+}
+
+class IssueRow extends React.Component {
+  render() {
+    const borderedStyle = {border:"1px solid silver", padding:4};
+    return (
+      <tr>
+        <td style={borderedStyle}>{this.props.issue_id}</td>
+        {/*
+        <td style={borderedStyle}>{this.props.issue_title}</td>
+        */}
+        <td style={borderedStyle}>{this.props.children}</td>
+      </tr>
+    );
+  }
+}
+
+class IssueTable extends React.Component {
+  render() {
+    const borderedStyle = {border:"1px solid silver", padding:6};
+    return (
+      <table style={{borderCollapse:"collapse"}}>
+        <thead>
+          <tr>
+            <th style={borderedStyle}>Id</th>
+            <th style={borderedStyle}>Title</th>
+          </tr>
+        </thead>
+        <tbody>
+          {/*
+          <IssueRow issue_id={1}
+            issue_title="Error in console when clicking Add" />
+          <IssueRow issue_id={2}
+            issue_title="Missing bottom border on panel" />
+          */}
+          <IssueRow issue_id={1}>Error in console when clicking Add</IssueRow>
+          <IssueRow issue_id={2}>Missing bottom <b>border</b> on panel</IssueRow>
+        </tbody>
+      </table>
+    );
+  }
+}
+
+class IssueAdd extends React.Component {
+  render() {
+    return (
+      <div>a placeholder for an Issue Add entry form</div>
+    );
+  }
+}
+
+
+class IssueList extends React.Component {
+  render() {
+    return (
+      <div>
+        <h1>Issue Tracker</h1>
+        <IssueFilter />
+        <hr />
+        <IssueTable />
+        <hr />
+        <IssueAdd />
+      </div>
+    );
+  }
+}
+
+ReactDOM.render(<IssueList />, contentNode);
+```
+
+```jsx
+const contentNode = document.getElementById('contents');
+
+const issues = [
+  {
+      id: 1, status: 'Open', owner: 'Ravan',
+      created: new Date('2016-08-15'), effort: 5, completionDate: undefined,
+      title: 'Error in console when clicking Add',
+  },
+  {
+      id: 2, status: 'Assigned', owner: 'Eddie',
+      created: new Date('2016-08-16'), effort: 14, 
+      completionDate: new Date('2016-08-30'),
+      title: 'Missing bottom border on panel',
+  },
+];
+
+class IssueFilter extends React.Component {
+  render() {
+    return (
+      <div>a placeholder for the issue filter</div>
+    );
+  }
+}
+
+class IssueRow extends React.Component {
+  render() {
+      const issue = this.props.issue;
+      return (
+          <tr>
+              <td>{issue.id}</td>
+              <td>{issue.status}</td>
+              <td>{issue.owner}</td>
+              <td>{issue.created.toDateString()}</td>
+              <td>{issue.effort}</td>
+              <td>{issue.completionDate ? 
+                      issue.completionDate.toDateString() : '' }</td>
+              <td>{issue.title}</td>
+          </tr>
+      );
+  }
+}
+
+class IssueTable extends React.Component {
+  render() {
+      const issueRows = this.props.issues.map(
+          issue => <IssueRow key={issue.id} issue={issue}></IssueRow>);
+      console.log(issueRows);
+      return (
+          <table className="bordered-table">
+              <thead>
+                  <tr>
+                      <th>Id</th>
+                      <th>Status</th>
+                      <th>Owner</th>
+                      <th>Created</th>
+                      <th>Effort</th>
+                      <th>Completion Date</th>
+                      <th>Title</th>
+                  </tr>
+              </thead>
+              
+              <tbody>{issueRows}</tbody>
+          </table>
+      );
+  }
+}
+
+class IssueAdd extends React.Component {
+  render() {
+    return (
+      <div>a placeholder for an Issue Add entry form</div>
+    );
+  }
+}
+
+
+class IssueList extends React.Component {
+  render() {
+    return (
+      <div>
+        <h1>Issue Tracker</h1>
+        <IssueFilter />
+        <hr />
+        <IssueTable issues={issues} />
+        <hr />
+        <IssueAdd />
+      </div>
+    );
+  }
+}
+
+ReactDOM.render(<IssueList />, contentNode);
 ```
 
