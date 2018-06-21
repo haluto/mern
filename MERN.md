@@ -896,3 +896,370 @@ createIssue(newIssue) {
 ## 错误处理
 
 调用REST API的结果是成功还是失败，通常会通过HTTP状态码反映出来。在服务器上，发送一个错误很简单：使用res.status()来设置状态码，然后将错误信息作为响应发送回去。
+
+* 在server.js中增加错误处理函数，在Create API返回新的issue之前做验证：
+
+```js
+const validIssueStatus = {
+    New: true,
+    Open: true,
+    Assigned: true,
+    Fixed: true,
+    Verified: true,
+    Closed: true,
+};
+const issueFieldType = {
+    id: 'required',
+    status: 'required',
+    owner: 'required',
+    effort: 'optional',
+    created: 'required',
+    completionDate: 'optional',
+    title: 'required',
+};
+function validateIssue(issue) {
+    for(const field in issueFieldType) {
+        const type = issueFieldType[field];
+        if(!type) {
+            delete issue[field];
+        } else if(type === 'required' && !issue[field]) {
+            return `${field} is required.`;
+        }
+    }
+
+    if(!validIssueStatus[issue.status]) {
+        return `${field.status} is not a valid status.`;
+    }
+
+    return null;
+}
+
+...
+
+app.post('/api/issues', (req, res) => {
+    const newIssue = req.body;
+    newIssue.id = issues.length + 1;
+    newIssue.created = new Date();
+    
+    if(!newIssue.status) {
+        newIssue.status = 'New';
+    }
+    
+    //validation
+    const err = validateIssue(newIssue);
+    if(err) {
+        res.status(422).json({message: `Invalid requrest: ${err}`});
+        return;
+    }
+
+    issues.push(newIssue);
+    console.log("response new added issue to clinet: ", newIssue);
+    res.json(newIssue);
+});
+```
+
+* 在客户端检测未成功的HTTP状态码：
+
+```jsx
+  createIssue(newIssue) {
+    fetch('/api/issues', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(newIssue),
+    }).then(response => {
+      if(response.ok) {
+        response.json().then(updatedIssue => {
+          console.log("response issue from server: ", updatedIssue);
+          updatedIssue.created = new Date(updatedIssue.created);
+          if(updatedIssue.completionDate)
+            updatedIssue.completionDate = new Date(updatedIssue.completionDate);
+          // 将服务器返回的新issue加到本地，不从服务器更新整个列表
+          const newIssues = this.state.issues.concat(updatedIssue);
+          this.setState({issues: newIssues});
+        });
+      } else {
+        response.json().then(error => {
+          alert("Failed to add issue: " + error.message);
+        });
+      }
+    }).catch(err => {
+      alert("Error in sending data to server: " + err.message);
+    });
+  }
+```
+
+注意：
+
+对于失败的HTTP状态码，Fetch API并不会抛出异常，所以使用一个catch来捕获这种错误是不可行的。我们必须检查响应的属性response.ok，如果它的结果不是OK，就需要显示一个错误。
+
+
+
+# 使用MongoDB
+
+## MongoDB基础
+
+几个核心概念：MongoDB、文档、集合。
+
+### 文档
+
+MongoDB是一个文档（document）数据库，也就是说，每条记录都相当于一个文档，或者说是一个对象。在关系型数据库中，必须使用行和列；而在文档数据库中，一个完整的对象可以使用文档的形式写入数据库。
+
+文档是由“字段-值”这样的键值对所组成的结构滑数据形式。字段的值可以是其他的文档、数组，甚至文档的数组。
+
+### 集合
+
+集合（collection）就像是关系型数据库中的表。它是一组文档的集合，通过它，可以访问其中的每一个文档。就像关系型数据库一样，你可以在集合中使用主键、索引，但略有差别。
+
+在MongoDB中，**主键是强制性的，它拥有一个保留的字段名称：_id**。如果在创建文档时没有指定_id字段，MongoDB会为每个文档自动生成一个唯一的主键并保存到该字段中。即使在多个客户端并发写入时，也能够保证主键的唯一性--MongoDB会使用一种成为ObjectId的特殊数据类型作为主键。
+
+_id字段会自动进行索引。此外，也可以在任何一个字段上创建索引，包括嵌入文档和数组类型的字段。使用索引可以高效地访问集合中一组特定的文档。
+
+和关系型数据库不同的是，MongoDB并不需要为集合定义一个架构（schema）。唯一需要确保的，就是所有文档必须包含一个唯一的_id字段值。
+
+### 查询语言
+
+与关系型数据库中看起来像是英语模式的SQL不同，MongoDB的查询语言是通过一组方法来完成各种操作。其中主要用于读写的方法就是CRUD方法，此外还包括聚合（aggregation）、文本检索（text search）和地理信息查询（geospatial queries）。
+
+### 安装
+
+1. 参考[官网](https://docs.mongodb.com/manual/tutorial/)安装MongoDB
+2. 启动MongoDB服务器（守护进程mongod）
+3. 运行mongo shell来验证：新起一个终端运行`mongo`，如果mongod已启动，则会打印MongoDB版本信息并进入mongo shell命令行模式。
+
+### mongo shell
+
+mongo shell是一个交互式的JavaScript shell，在这个交互式环境中，除了能够利用JavaScript的强大特性之外，也包含一些非JavaScript的便捷操作。完整文档可参考[官网教程](https://docs.mongodb.com/manual/tutorial/)。
+
+或参考[mongodb.md](https://github.com/haluto/notes/blob/master/mongodb.md)
+
+### shell脚本
+
+mongo shell脚本就是一个普通的JavaScript程序，其中可以使用所有的集合方法和内置函数。与交互性shell不同的是，你无法使用便捷的use命令或默认全局变量db，而必须在shell脚本程序中手动地初始化它们，比如：
+
+```js
+var db = new Mongo().getDB("dbname");
+```
+
+把脚本文件作为mongo shell的启动参数，可以运行脚本：
+
+```shell
+$ mongo test.mongo.js
+```
+
+## 架构初始化
+
+因为MongoDB并不强制使用一个特定的架构，所以并不需要对架构进行初始化。唯一一件需要做的事就是创建索引：在应用中，对于常用的筛选字段创建索引是非常有必要的。
+
+继续IssueTracker项目。
+
+* 在项目文件夹下创建新目录scripts，创建一个mongo shell脚本init.mongo.js放入scripts中：
+
+```js
+db = new Mongo().getDB('issuetracker');
+
+db.issues.remove({});
+db.issues.insert([
+    {
+        status: 'Open', owner: 'Ravan',
+        created: new Date('2016-08-15'), effort: 5, completionDate: undefined,
+        title: 'Error in console when clicking Add',
+    },
+    {
+        status: 'Assigned', owner: 'Eddie',
+        created: new Date('2016-08-16'), effort: 14, 
+        completionDate: new Date('2016-08-30'),
+        title: 'Missing bottom border on panel',
+    },
+]);
+
+db.issues.createIndex({ status: 1});
+db.issues.createIndex({ owner: 1});
+db.issues.createIndex({ created: 1});
+```
+
+* 在命令行中运行这个脚本：
+
+```shell
+$ mongo scripts/init.mongo.js
+```
+
+* 打开mongo shell进行验证：
+
+```shell
+#db切换到issuetracker
+> use issuetracker
+
+#用find()列出所有文档 -- 应该返回init.mongo.js中插入的两个文档
+> db.issues.find()
+
+#用getIndexes()列出所有索引 -- 应该返回init.mongo.js中创建的status、owner、created，以及自动创建的_id共四个索引
+> db.issues.getIndexes()
+```
+
+## MongoDB Node.js驱动程序
+
+连接MongoDB服务器并与之进行交互的过程，需要通过Node.js驱动程序来完成。它是一个npm模块。
+
+另一种选择是使用mongoose模块，它是一个对象文档映射框架（object-document-mapper）。
+
+* 安装驱动程序：
+
+```shell
+$ npm install mongodb --save
+```
+
+mongodb模块包含了很多函数和对象，其中MongoClient对象提供了客户端访问的能力，其最主要的方法之一就是connect。connect函数的参数是一个类似URL的字符串，它以mongo://开头，后面紧跟着服务器名称，然后在/分隔符后面再指定数据库名称。
+
+使用collection()方法，提供集合的名称作为参数来访问db中的集合。
+
+* 一个示例：
+
+```js
+const MongoClient = require('mongodb').MongoClient;
+
+MongoClient.connect('mongodb://localhost/playground', function(err, db) {
+    db.collection('exployees').find().toArray(function(err, docs) {
+        console.log('Result of find:', docs);
+        db.close();
+    });
+});
+```
+
+注意：
+
+**驱动程序中的所有调用都是异步的**，我们在上述示例中在所有的MongoDB驱动程序方法中都提供了一个回调函数。MongoDB驱动程序的文档中为我们提供了三种不同的模式来处理这些异步调用：
+
+1. **回调模式**
+2. **promise模式**
+3. **使用co模块来生成函数**
+4. async模块的方式（未在MongoDB驱动程序文档中提及的方法）
+
+* 接下来创建一个名为trymongo.js的脚本来测试和验证这些操作：
+
+```js
+// trymongo.js
+
+/*eslint-disable*/
+'use strict';
+const MongoClient = require('mongodb').MongoClient;
+
+const url = 'mongodb://localhost';
+const dbName = 'playground';
+const colName = 'employees';
+
+function testWithCallbacks() {
+  MongoClient.connect(url, function(err, client) {
+    const col = client.db(dbName).collection(colName);
+    col.insertOne({id: 1, name: 'A. Callback'}, function(err, result) {
+      console.log("Result of insert:", result.insertedId);
+      col.find({id: 1}).toArray(function(err, docs) {
+        console.log('Result of find:', docs);
+        client.close();
+      });
+    });
+  });
+}
+
+function testWithPromises() {
+  let client;
+  MongoClient.connect(url).then(c => {
+    client = c;
+    return client.db(dbName).collection(colName).insertOne({id: 1, name: 'B. Promises'});
+
+  }).then(result => {
+    console.log("Result of insert:", result.insertedId);
+    return client.db(dbName).collection('employees').find({id: 1}).toArray();
+
+  }).then(docs => {
+    console.log('Result of find:', docs);
+    client.close();
+
+  }).catch(err => {
+    console.log('ERROR', err);
+  });
+}
+
+function testWithGenerator() {
+  const co = require('co');
+  co(function*() {
+    const db = yield MongoClient.connect('mongodb://localhost/playground');
+
+    const result = yield db.collection('employees').insertOne({id: 1, name: 'C. Generator'});
+    console.log('Result of insert:', result.insertedId);
+
+    const docs = yield db.collection('employees').find({id: 1}).toArray();
+    console.log('Result of find:', docs);
+
+    db.close();
+  }).catch(err => {
+    console.log('ERROR', err);
+  });
+}
+
+function testWithAsync() {
+  const async = require('async');
+  let db;
+  async.waterfall([
+    next => {
+      MongoClient.connect('mongodb://localhost/playground', next);
+    },
+    (connection, next) => {
+      db = connection;
+      db.collection('employees').insertOne({id: 1, name: 'D. Async'}, next);
+    },
+    (insertResult, next) => {
+      console.log('Insert result:', insertResult.insertedId);
+      db.collection('employees').find({id: 1}).toArray(next);
+    },
+    (docs, next) => {
+      console.log('Result of find:', docs);
+      db.close();
+      next(null, 'All done');
+    }
+  ], (err, result) => {
+    if (err)
+      console.log('ERROR', err);
+    else
+      console.log(result);
+  });
+}
+
+function usage() {
+  console.log('Usage:');
+  console.log('node', __filename, '<option>');
+  console.log('Where option is one of:');
+  console.log('  callbacks   Use the callbacks paradigm');
+  console.log('  promises    Use the Promises paradigm');
+  console.log('  generator   Use the Generator paradigm');
+  console.log('  async       Use the async module');
+}
+
+if (process.argv.length < 3) {
+  console.log("Incorrect number of arguments");
+  usage();
+} else {
+  if (process.argv[2] === 'callbacks') {
+    testWithCallbacks();
+  } else if (process.argv[2] === 'promises') {
+    testWithPromises();
+  } else if (process.argv[2] === 'generator') {
+    testWithGenerator();
+  } else if (process.argv[2] === 'async') {
+    testWithAsync();
+  } else {
+    console.log("Invalid option:", process.argv[2]);
+    usage();
+  }
+}
+```
+
+[MongoDB3.x版本API](http://mongodb.github.io/node-mongodb-native/3.0/api/)与2.x不同，需要修改。
+
+* 运行脚本进行测试：
+
+```shell
+$ node node trymongo.js callbacks
+$ node node trymongo.js promises
+...
+```
+
