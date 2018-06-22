@@ -11,6 +11,7 @@ $ npm start
 ```
 
 * [修改JSX文件后自动编译为JS：](#自动化)
+* 后面使用[webpack执行babel编译和打包](#转换和打包)：
 
 ```shell
 $ npm run watch
@@ -1399,3 +1400,79 @@ app.bundle.js  6.5 KiB       0  [emitted]  main
 ## 转换和打包
 
 上述过程分了两步执行，先要手动转换JSX文件，然后再使用webpack将它们打包到一起。webpack有能力组合这两个步骤，不再依赖中间状态文件。但它单靠自己做不到这一点，需要借助于**加载器**。除了纯JavaScript之外的其他文件类型以及所有的转换操作都需要webpack加载器。它们都是独立的模块。
+
+在本例中，需要babel加载器来处理JSX转换。
+
+* 安装babel加载器：
+
+```shell
+$ npm install --save-dev babel-loader
+```
+
+* 命令行使用加载器非常烦琐，使用webpack.config.js配置文件：
+
+```js
+module.exports = {
+    entry: './src/App.jsx',
+    output: {
+        path: './static',
+        filename: 'app.bundle.js'
+    },
+    module: {
+        loaders: [
+            {
+                test: /\.jsx$/,
+                loader: 'babel-loader',
+                query: {
+                    presets: ['react', 'es2015']
+                }
+            },
+        ]
+    }
+};
+
+//   新版本webpack的变化，需修改成如下：
+// 1 path必须是绝对路径，使用path.resolve，path需要先导入。
+// 2 module中loaders没有了
+const path = require('path');
+
+module.exports = {
+    entry: './src/App.jsx',
+    output: {
+        path: path.resolve(__dirname, 'static'),
+        filename: 'app.bundle.js'
+    },
+    module: {
+        rules: [
+            {
+                test: /\.jsx$/,
+                exclude: /(node_modules|bower_components)/,
+                use: {
+                    loader: 'babel-loader',
+                    options: {
+                        presets: ['react', 'es2015']
+                    }
+                }
+            },
+        ]
+    }
+};
+```
+
+加载器规范：一个用来匹配文件的test（正则表达式）、想要应用的loader（本例中是babel-loader）以及该加载器的一组选项（通过属性query来指定）。
+
+* webpack会在内存中将IssueAdd.jsx转换为IssueAdd.js，不会再创建js文件，所以App.jsx中的import语句要改为：
+
+```jsx
+import IssueAdd from './IssueAdd.jsx';
+```
+
+* webpack编译也有监控模式，将它替换原来的脚本：
+
+```json
+...
+"compile": "webpack",
+"watch": "webpack --watch",
+...
+```
+

@@ -1,5 +1,5 @@
 
-import IssueAdd from './IssueAdd.js';
+import IssueAdd from './IssueAdd.jsx';
 
 const contentNode = document.getElementById('contents');
 
