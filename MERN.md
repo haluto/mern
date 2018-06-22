@@ -1253,7 +1253,7 @@ if (process.argv.length < 3) {
 }
 ```
 
-[MongoDB3.x版本API](http://mongodb.github.io/node-mongodb-native/3.0/api/)与2.x不同，需要修改。
+[MongoDB3.x版本API](http://mongodb.github.io/node-mongodb-native/3.0/api/)与2.x不同，需要修改。上述示例中只修改了callbacks，promises。
 
 * 运行脚本进行测试：
 
@@ -1263,3 +1263,139 @@ $ node node trymongo.js promises
 ...
 ```
 
+# 模块化与webpack
+
+## 服务器端模块
+
+服务器端公共模块通过npm install安装，通过**module.exports来导入自己本地文件**。
+
+**我们的目的是将与问题对象（或模型）相关的代码拆分到单独的文件中**。
+
+* 先创建一个名为server的目录来存放所有服务器端文件，将server.js移动到该目录。
+* 创建一个名为issue.js的文件，将有关问题验证的所有代码都移到这个文件中：
+
+```js
+'use strict';
+
+const validIssueStatus = {
+    New: true,
+    Open: true,
+    Assigned: true,
+    Fixed: true,
+    Verified: true,
+    Closed: true,
+};
+const issueFieldType = {
+    id: 'required',
+    status: 'required',
+    owner: 'required',
+    effort: 'optional',
+    created: 'required',
+    completionDate: 'optional',
+    title: 'required',
+};
+function validateIssue(issue) {
+    for(const field in issueFieldType) {
+        const type = issueFieldType[field];
+        if(!type) {
+            delete issue[field];
+        } else if(type === 'required' && !issue[field]) {
+            return `${field} is required.`;
+        }
+    }
+
+    if(!validIssueStatus[issue.status]) {
+        return `${field.status} is not a valid status.`;
+    }
+
+    return null;
+}
+
+module.exports = {
+    validateIssue: validateIssue
+};
+```
+
+'use strict'非常重要。缺少了会使const和let的行为有所不同。
+
+* 在server.js中导入这个模块，修改引用处：
+
+```js
+const Issue = require('./issue.js');
+...
+//validation
+    const err = Issue.validateIssue(newIssue);
+...
+```
+
+* 修改package.json的启动脚本：
+
+```json
+"start": "nodemon -w server server/server.js",
+```
+
+* 重启服务。
+
+
+
+## webpack简介
+
+webpack和Browserify这样的工具提供了一种类似Node.js应用中依赖定义的方式，可以使用require或等价的语句。它们在自动解析依赖关系时，不仅会解析你自己依赖的模块，还会解析第三方库。然后，它们会把这些独立的文件合并到一个或多个捆绑包中。捆绑包是一个囊括了全部所需代码的纯JavaScript文件，可以被引入到HTML文件中。Browserify只做打包的工作，完成完整的任务还需要其它工具配合。
+
+webpack不仅可以打包，在借助加载器的情况下还能完成很多其他任务（比如转换和监控文件变更）。使用webpack，就再也不需要其他任务运行器。
+
+webpack也能处理诸如CSS文件等静态资源。它甚至还可以拆分捆绑包以使其能够异步加载。这里先专注于模块化客户端代码这一目标。
+
+## 手工使用webpack
+
+* 安装webpack：
+
+```shell
+$ npm install --save-dev webpack
+```
+
+* 尝试用webpack把App.js文件打包成名为app.bundle.js的捆绑包：
+
+```shell
+$ node_modules/.bin/webpack static/App.js --output static/app.bundle.js
+```
+
+* 新建IssueAdd.jsx，将IssueAdd类从App.jsx中移动到该文件中：
+
+```jsx
+export default class IssueAdd extends React.Component {
+    ...
+}
+```
+
+* App.jsx中移除IssueAdd类，并将其导入：
+
+```jsx
+import IssueAdd from './IssueAdd.js';
+```
+
+* babel编译jsx为js后再运行上述webpack打包命令，可以看到IssueAdd.js自动添加到捆绑包中了（即使你并没有告诉它包含这个文件）。
+
+```shell
+$ ./node_modules/.bin/webpack ./static/App.js  --output ./static/app.bundle.js
+Hash: d3ce8c46cab598b474c6
+Version: webpack 4.12.0
+Time: 314ms
+Built at: 2018-06-22 10:53:25
+        Asset     Size  Chunks             Chunk Names
+app.bundle.js  6.5 KiB       0  [emitted]  main
+[0] ./static/IssueAdd.js 2.86 KiB {0} [built]
+[1] ./static/App.js 7.91 KiB {0} [built]
+```
+
+* 在index.html中引用App.js的地方改为引用app.bundle.js：
+
+```html
+<script src="app.bundle.js"></script>
+```
+
+* 刷新应用，正常工作。html中只需引用一个js文件，所有js依赖关系都由webpack处理好了。App.js、IssueAdd.js成了中间文件，可以删除掉了。
+
+## 转换和打包
+
+上述过程分了两步执行，先要手动转换JSX文件，然后再使用webpack将它们打包到一起。webpack有能力组合这两个步骤，不再依赖中间状态文件。但它单靠自己做不到这一点，需要借助于**加载器**。除了纯JavaScript之外的其他文件类型以及所有的转换操作都需要webpack加载器。它们都是独立的模块。
