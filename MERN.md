@@ -1347,6 +1347,8 @@ webpack不仅可以打包，在借助加载器的情况下还能完成很多其�
 
 webpack也能处理诸如CSS文件等静态资源。它甚至还可以拆分捆绑包以使其能够异步加载。这里先专注于模块化客户端代码这一目标。
 
+注意：书中大量代码在新版本上无法使用，参考[webpack文档](https://webpack.js.org/concepts/)。
+
 ## 手工使用webpack
 
 * 安装webpack：
@@ -1495,4 +1497,21 @@ import ReactDOM from 'react-dom';
 
 * 删除index.html中react、react-dom等的脚本引用。
 
-这样有个问题，三方库和自己的代码全都一起编译，每次很小的改动，都要进行整编。更好的方式是生成两个捆绑包，一个用于应用代码，另一个用于所有库。
+这样有个问题，三方库和自己的代码全都一起编译，每次很小的改动，都要进行整编。更好的方式是生成两个捆绑包，一个用于应用代码，另一个用于所有库。webpack内置了一个名为CommonsChunkPlugin的插件能够相当轻松地完成这个任务。
+
+* 修改webpack.config.js文件：
+
+```js
+...
+entry: {
+    app: './src/App.jsx',
+    vendor: ['react', 'react-dom'],
+},
+...
+plugins: [
+    new webpack.optimize.CommonsChunkPlugin('vendor', 'vendor.bundle.js')
+],
+...
+```
+
+这个用法无法使用，TODO。
