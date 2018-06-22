@@ -1,4 +1,6 @@
 
+import React from 'react';
+import ReactDOM from 'react-dom';
 import IssueAdd from './IssueAdd.jsx';
 
 const contentNode = document.getElementById('contents');

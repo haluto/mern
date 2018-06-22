@@ -1476,3 +1476,23 @@ import IssueAdd from './IssueAdd.jsx';
 ...
 ```
 
+## 库捆绑包
+
+React等三方库目前是从CDN作为脚本引入进来的，接下来也打包：
+
+* npm安装库：
+
+```shell
+$ npm install --save react react-dom
+```
+
+* 在App.jsx等文件中用import载入react、react-dom：
+
+```jsx
+import React from 'react';
+import ReactDOM from 'react-dom';
+```
+
+* 删除index.html中react、react-dom等的脚本引用。
+
+这样有个问题，三方库和自己的代码全都一起编译，每次很小的改动，都要进行整编。更好的方式是生成两个捆绑包，一个用于应用代码，另一个用于所有库。
